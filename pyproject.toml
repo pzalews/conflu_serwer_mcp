@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "confluence-server-mcp"
+version = "0.1.0"
+description = "FastMCP server for Confluence Server / Confluence Data Center (self-hosted)"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "fastmcp>=3.3.1",
+    "httpx>=0.28.1,<1.0",
+    "pydantic>=2.11.0,<3.0",
+    "pydantic-settings>=2.7.0,<3.0",
+    "tenacity>=9.0.0,<10.0",
+    "structlog>=25.1.0",
+    "markdown>=3.7",
+    "markdownify>=1.1",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.25.0",
+    "respx>=0.22.0",
+    "ruff>=0.9.0",
+    "mypy>=1.15.0",
+    "types-Markdown",
+    "lxml-stubs",
+]
+
+[project.scripts]
+confluence-mcp = "confluence_mcp.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/confluence_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "UP", "B", "I"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+packages = ["confluence_mcp"]
+
+[[tool.mypy.overrides]]
+module = ["tenacity.*", "structlog.*"]
+ignore_missing_imports = true
