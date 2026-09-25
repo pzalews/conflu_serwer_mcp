@@ -1,0 +1,30 @@
+services:
+  confluence-mcp:
+    build: .
+    image: confluence-server-mcp:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - CONFLUENCE_URL=${CONFLUENCE_URL}
+      - CONFLUENCE_TOKEN=${CONFLUENCE_TOKEN:-}
+      - CONFLUENCE_USERNAME=${CONFLUENCE_USERNAME:-}
+      - CONFLUENCE_PASSWORD=${CONFLUENCE_PASSWORD:-}
+      - CONFLUENCE_DEFAULT_SPACE=${CONFLUENCE_DEFAULT_SPACE:-}
+      - CONFLUENCE_READ_ONLY=${CONFLUENCE_READ_ONLY:-false}
+      - CONFLUENCE_CUSTOM_HEADERS=${CONFLUENCE_CUSTOM_HEADERS:-}
+      - CONFLUENCE_ATTACHMENT_MAX_BYTES=${CONFLUENCE_ATTACHMENT_MAX_BYTES:-5242880}
+      - CONFLUENCE_LOG_PATH=/var/log/confluence-mcp/server.log
+      - MCP_TRANSPORT=http
+      - MCP_HTTP_HOST=0.0.0.0
+      - MCP_HTTP_PORT=8000
+    volumes:
+      - mcp_logs:/var/log/confluence-mcp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8000), 5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  mcp_logs:

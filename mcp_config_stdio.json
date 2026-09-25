@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "confluence": {
+      "command": "confluence-mcp",
+      "env": {
+        "CONFLUENCE_URL": "https://confluence.yourcompany.com",
+        "CONFLUENCE_TOKEN": "your-token-here"
+      }
+    }
+  }
+}
