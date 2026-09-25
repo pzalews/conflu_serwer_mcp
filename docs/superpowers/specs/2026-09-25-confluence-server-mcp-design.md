@@ -13,7 +13,7 @@ It is a sibling of `jira_server_mcp` and `bitbucket_server_mcp` and **mirrors `b
 
 ## Success criteria
 
-- Claude Code registered with `claude mcp add --transport http confluence http://<host>:8000/mcp/` can search, read, create and update pages and blog posts, and manage comments, labels and attachments.
+- Claude Code registered with `claude mcp add --transport http confluence http://<host>:8000/mcp` can search, read, create and update pages and blog posts, and manage comments, labels and attachments.
 - Reading a page as Markdown and writing that Markdown back does not lose content (known macros round-trip; unknown macros pass through verbatim).
 - An update cannot silently drop macros or overwrite a concurrent edit.
 - `CONFLUENCE_READ_ONLY=true` blocks every write tool before any HTTP call.
@@ -108,7 +108,7 @@ Validation fails at startup unless a token or both username and password are set
 
 Page content is exchanged as **Markdown by default**; every content read/write tool takes `format: Literal["markdown", "storage"] = "markdown"`. `storage` returns/accepts raw Confluence storage XHTML unchanged.
 
-Libraries: `markdownify` (read direction, with custom converters) and `markdown` (write direction, extensions `tables`, `fenced_code`, `sane_lists` plus our own small extensions for callouts, task lists and `confluence:`/`attachment:` links). Storage is parsed with `beautifulsoup4` + `lxml` (XML mode, since `ac:`/`ri:` are namespaced elements; a fragment is wrapped in a root element declaring the `ac`/`ri` namespaces before parsing).
+Libraries: `markdownify` (read direction, with a custom converter) and `markdown` (write direction, extensions `tables`, `fenced_code`, `sane_lists`), with `beautifulsoup4` (`html.parser`) post-processing the HTML for callouts, task lists, code blocks and `confluence:`/`attachment:` links. `ac:`/`ri:` elements are located by a text-level scanner (skipping CDATA, comments and, in Markdown, code) rather than an XML parser, so unknown elements can be copied byte-for-byte and HTML entities such as `&nbsp;` need no special handling. `lxml` is used only in tests, to normalise XML for comparisons.
 
 ### Mapping
 
@@ -125,7 +125,7 @@ Libraries: `markdownify` (read direction, with custom converters) and `markdown`
 | `ac:task-list` / `ac:task` with `ac:task-status` complete/incomplete | `- [x]` / `- [ ]` |
 | any other `ac:structured-macro`, `ac:*` or `ri:*` element (jira, toc, include, status, expand, excerpt, anchor, …) | the element's original XHTML emitted verbatim as a raw HTML block, separated by blank lines |
 
-**Passthrough rule:** block-level raw HTML is left untouched by `markdown`, so `to_storage` restores unknown macros byte-for-byte. For inline occurrences (e.g. a `status` macro inside a paragraph), the raw XHTML is emitted inline; `markdown` also preserves inline raw HTML. Tool docstrings tell the model: *"Raw `<ac:…>`/`<ri:…>` blocks in the Markdown are Confluence macros; keep them unchanged unless you intend to modify them."*
+**Passthrough rule:** unknown elements are swapped for opaque tokens before `markdownify`/`markdown` run and swapped back afterwards (paragraphs holding only such tokens are unwrapped), so `to_storage` restores unknown macros byte-for-byte. For inline occurrences (e.g. a `status` macro inside a paragraph), the raw XHTML is emitted inline; `markdown` also preserves inline raw HTML. Tool docstrings tell the model: *"Raw `<ac:…>`/`<ri:…>` blocks in the Markdown are Confluence macros; keep them unchanged unless you intend to modify them."*
 
 ### Macro inventory
 
@@ -261,15 +261,15 @@ ConfluenceMCPError
 ## Deployment
 
 - **Dockerfile:** multi-stage like bitbucket. The builder uses `uv pip install --system .`; runtime is `python:3.12-slim` with a non-root `mcp` user, `/var/log/confluence-mcp` owned by `mcp`, `ENV MCP_TRANSPORT=http MCP_HTTP_HOST=0.0.0.0 MCP_HTTP_PORT=8000`, `EXPOSE 8000`, `ENTRYPOINT ["confluence-mcp"]`.
-- **docker-compose.yml:** single `confluence-mcp` service, port 8000, env from `.env`, log volume, restart `unless-stopped`, healthcheck on `http://localhost:8000/mcp/`.
+- **docker-compose.yml:** single `confluence-mcp` service, port 8000, env from `.env`, log volume, restart `unless-stopped`, healthcheck is a TCP connect to port 8000 (a plain GET on `/mcp` is not a valid MCP request).
 - **CI:** `.github/workflows/docker-image.yml` copied from bitbucket (build on PR; push to `ghcr.io/<owner>/confluence-server-mcp` on main and `v*.*.*` tags). `.github/dependabot.yml` for pip, github-actions, docker.
 - **Makefile:** `install`, `test`, `lint`, `format`, `typecheck`, `check`, `run-stdio`, `run-http`, `docker-build`, `docker-run`, `clean`.
-- **README:** features, config table, creating a PAT (Profile → Settings → Personal Access Tokens), read-only mode, Markdown conversion + macro safeguards, Docker usage, `claude mcp add --transport http confluence http://host:8000/mcp/`, and example `mcp_config_http.json`.
+- **README:** features, config table, creating a PAT (Profile → Settings → Personal Access Tokens), read-only mode, Markdown conversion + macro safeguards, Docker usage, `claude mcp add --transport http confluence http://host:8000/mcp`, and example `mcp_config_http.json`.
 
 ## Dependencies
 
-Runtime: `fastmcp>=3.3.1`, `httpx>=0.28.1,<1.0`, `pydantic>=2.11,<3.0`, `pydantic-settings>=2.7,<3.0`, `tenacity>=9.0,<10.0`, `structlog>=25.1,<26.0`, `markdown>=3.7`, `markdownify>=0.14`, `beautifulsoup4>=4.12`, `lxml>=5.0`.
-Dev: `pytest`, `pytest-asyncio`, `respx`, `ruff`, `mypy`, `types-Markdown`, `types-beautifulsoup4`/`lxml-stubs` as needed.
+Runtime: `fastmcp>=3.3.1`, `httpx>=0.28.1,<1.0`, `pydantic>=2.11,<3.0`, `pydantic-settings>=2.7,<3.0`, `tenacity>=9.0,<10.0`, `structlog>=25.1`, `markdown>=3.7`, `markdownify>=1.1`, `beautifulsoup4>=4.12`, `lxml>=5.0`.
+Dev: `pytest`, `pytest-asyncio`, `respx`, `ruff`, `mypy`, `types-Markdown`, `lxml-stubs`.
 Python `>=3.12`; ruff line-length 100, rules `E,W,F,UP,B,I`; mypy strict.
 
 ## Testing
