@@ -6,6 +6,7 @@ Reads from environment variables (CONFLUENCE_* and MCP_*) or a .env file.
 from __future__ import annotations
 
 import base64
+import os
 from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -44,6 +45,7 @@ class Settings(BaseSettings):
     confluence_log_path: str | None = None
     confluence_attachment_max_bytes: int = Field(default=5 * 1024 * 1024, gt=0)
     confluence_timeout_seconds: float = Field(default=30.0, gt=0)
+    confluence_ca_bundle: str | None = None  # PEM file with extra CA certs (corporate root)
 
     # Transport
     mcp_transport: Literal["stdio", "http"] = "stdio"
@@ -64,6 +66,7 @@ class Settings(BaseSettings):
         "confluence_password",
         "confluence_default_space",
         "confluence_custom_headers",
+        "confluence_ca_bundle",
         mode="before",
     )
     @classmethod
@@ -72,6 +75,13 @@ class Settings(BaseSettings):
             return None
         v = _unquote(v)
         return v or None
+
+    @field_validator("confluence_ca_bundle")
+    @classmethod
+    def ca_bundle_exists(cls, v: str | None) -> str | None:
+        if v is not None and not os.path.isfile(v):
+            raise ValueError(f"CONFLUENCE_CA_BUNDLE file not found: {v!r}")
+        return v
 
     @model_validator(mode="after")
     def require_auth(self) -> Settings:
@@ -113,4 +123,5 @@ class Settings(BaseSettings):
             "http_port": self.mcp_http_port,
             "attachment_max_bytes": self.confluence_attachment_max_bytes,
             "custom_headers_count": len(self.get_custom_headers()),
+            "ca_bundle": self.confluence_ca_bundle,
         }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -96,3 +97,25 @@ def test_compose_passes_timeout() -> None:
 
     compose = (Path(__file__).parent.parent / "docker-compose.yml").read_text()
     assert "CONFLUENCE_TIMEOUT_SECONDS=${CONFLUENCE_TIMEOUT_SECONDS:-30}" in compose
+
+
+def test_ca_bundle_path_must_exist(tmp_path: Path) -> None:
+    with pytest.raises(ValidationError, match="CONFLUENCE_CA_BUNDLE"):
+        make_settings(confluence_ca_bundle=str(tmp_path / "missing.pem"))
+
+
+def test_ca_bundle_quotes_stripped(tmp_path: Path) -> None:
+    bundle = tmp_path / "ca.pem"
+    bundle.write_text("x")
+    s = make_settings(confluence_ca_bundle=f'"{bundle}"')
+    assert s.confluence_ca_bundle == str(bundle)
+    assert s.redacted()["ca_bundle"] == str(bundle)
+
+
+def test_ca_bundle_defaults_to_none() -> None:
+    assert make_settings().confluence_ca_bundle is None
+
+
+def test_compose_passes_ca_bundle() -> None:
+    compose = (Path(__file__).parent.parent / "docker-compose.yml").read_text()
+    assert "CONFLUENCE_CA_BUNDLE=${CONFLUENCE_CA_BUNDLE:-}" in compose

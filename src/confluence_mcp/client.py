@@ -6,6 +6,7 @@ page content formats.
 
 from __future__ import annotations
 
+import ssl
 import time
 from typing import Any
 
@@ -81,6 +82,14 @@ def _raise_for_status(response: httpx.Response) -> None:
     raise ConfluenceAPIError(status, message)
 
 
+def tls_verify(settings: Settings) -> ssl.SSLContext | bool:
+    """TLS trust for Confluence: CONFLUENCE_CA_BUNDLE if set, else httpx's default
+    (certifi, or SSL_CERT_FILE / SSL_CERT_DIR)."""
+    if settings.confluence_ca_bundle:
+        return ssl.create_default_context(cafile=settings.confluence_ca_bundle)
+    return True
+
+
 class ConfluenceClient:
     def __init__(self, settings: Settings, *, retry_wait: float = 0.5) -> None:
         self._settings = settings
@@ -95,6 +104,7 @@ class ConfluenceClient:
             headers=headers,
             timeout=httpx.Timeout(settings.confluence_timeout_seconds, connect=10.0),
             follow_redirects=True,
+            verify=tls_verify(settings),
         )
 
     @property

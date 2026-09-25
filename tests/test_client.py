@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import ssl
+from pathlib import Path
+
 import httpx
 import pytest
 import respx
 
-from confluence_mcp.client import ConfluenceClient
+from confluence_mcp.client import ConfluenceClient, tls_verify
 from confluence_mcp.exceptions import (
     AuthenticationError,
     AuthorizationError,
@@ -144,3 +147,19 @@ async def test_paginate_follows_next(client: ConfluenceClient) -> None:
 async def test_delete_returns_none_on_204(client: ConfluenceClient) -> None:
     respx.delete(f"{BASE}/x").mock(return_value=httpx.Response(204))
     assert await client.delete("/x") is None
+
+
+def test_ca_bundle_is_the_trust_store(tmp_path: Path) -> None:
+    import certifi
+
+    first_cert = open(certifi.where()).read().split("-----END CERTIFICATE-----")[0]
+    bundle = tmp_path / "corp-ca.pem"
+    bundle.write_text(first_cert + "-----END CERTIFICATE-----\n")
+    verify = tls_verify(make_settings(confluence_ca_bundle=str(bundle)))
+    assert isinstance(verify, ssl.SSLContext)
+    assert verify.verify_mode == ssl.CERT_REQUIRED
+    assert len(verify.get_ca_certs()) == 1
+
+
+def test_no_ca_bundle_keeps_default_verification() -> None:
+    assert tls_verify(make_settings()) is True

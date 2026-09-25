@@ -14,12 +14,15 @@ services:
       - CONFLUENCE_CUSTOM_HEADERS=${CONFLUENCE_CUSTOM_HEADERS:-}
       - CONFLUENCE_ATTACHMENT_MAX_BYTES=${CONFLUENCE_ATTACHMENT_MAX_BYTES:-5242880}
       - CONFLUENCE_TIMEOUT_SECONDS=${CONFLUENCE_TIMEOUT_SECONDS:-30}
+      # Corporate CA: mount the PEM (see volumes) and set CONFLUENCE_CA_BUNDLE=/certs/ca.pem
+      - CONFLUENCE_CA_BUNDLE=${CONFLUENCE_CA_BUNDLE:-}
       - CONFLUENCE_LOG_PATH=/var/log/confluence-mcp/server.log
       - MCP_TRANSPORT=http
       - MCP_HTTP_HOST=0.0.0.0
       - MCP_HTTP_PORT=8000
     volumes:
       - mcp_logs:/var/log/confluence-mcp
+      # - /etc/ssl/certs/ca-certificates.crt:/certs/ca.pem:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8000), 5)"]

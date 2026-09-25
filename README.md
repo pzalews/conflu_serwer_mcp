@@ -28,6 +28,7 @@ Environment variables (or a `.env` file — copy `.env.example`):
 | `CONFLUENCE_CUSTOM_HEADERS` | no | — | `Header=Value,Other=Value` for proxies / Zero Trust |
 | `CONFLUENCE_ATTACHMENT_MAX_BYTES` | no | `5242880` | Size limit for attachment download/upload |
 | `CONFLUENCE_TIMEOUT_SECONDS` | no | `30` | HTTP timeout |
+| `CONFLUENCE_CA_BUNDLE` | no | — | PEM file of CA certificates to trust instead of the public ones (corporate root CA) |
 | `CONFLUENCE_LOG_PATH` | no | — | Also write JSON logs to this file |
 | `MCP_TRANSPORT` | no | `stdio` (`http` in Docker) | `stdio` or `http` (streamable HTTP) |
 | `MCP_HTTP_HOST` / `MCP_HTTP_PORT` | no | `127.0.0.1` / `8000` | HTTP bind address |
@@ -35,6 +36,19 @@ Environment variables (or a `.env` file — copy `.env.example`):
 ### Creating a Personal Access Token
 
 In Confluence: avatar → **Settings** → **Personal Access Tokens** → **Create token**. The server acts as that user: everyone who can reach the MCP endpoint gets that user's permissions, so run one container per token and restrict network access to it.
+
+### Corporate (self-signed) certificates
+
+If calls fail with `CERTIFICATE_VERIFY_FAILED ... self-signed certificate in certificate chain`, Confluence uses an internal CA. Mount a PEM bundle that contains it and point `CONFLUENCE_CA_BUNDLE` at it. On a Linux host that already trusts the CA, the system bundle works:
+
+```bash
+docker run ... \
+  -v /etc/ssl/certs/ca-certificates.crt:/certs/ca.pem:ro \
+  -e CONFLUENCE_CA_BUNDLE=/certs/ca.pem \
+  confluence-server-mcp
+```
+
+The bundle replaces the built-in public CAs for Confluence connections, so it must contain the whole chain's root. The server refuses to start if the file does not exist.
 
 ## Running
 
