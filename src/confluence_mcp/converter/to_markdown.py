@@ -30,6 +30,7 @@ _BLOCK_IN_CELL = (
     "h6",
     "hr",
 )
+_BLANK_LINE_RE = re.compile(r"\n(?=[ \t]*\n)")  # a newline that starts a blank line
 
 
 def _macro_known_attrs(el: Element) -> bool:
@@ -261,7 +262,9 @@ class _Converter(_MarkdownConverterBase):  # type: ignore[misc]
 
     def convert_table(self, el: Tag, text: str, parent_tags: set[str]) -> str:
         if _is_complex_table(el):
-            return "\n\n" + str(el) + "\n\n"
+            # A Markdown HTML block ends at the first blank line, so encode the
+            # newline before each blank line; the HTML parser decodes it back.
+            return "\n\n" + _BLANK_LINE_RE.sub("&#10;", str(el)) + "\n\n"
         return str(super().convert_table(el, text, parent_tags))
 
 
