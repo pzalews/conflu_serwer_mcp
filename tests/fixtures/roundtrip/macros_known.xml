@@ -1,0 +1,9 @@
+<ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="0a1b"><ac:parameter ac:name="language">python</ac:parameter><ac:plain-text-body><![CDATA[def f(a, b):
+    return a < b  # ]]]]><![CDATA[> tricky]]></ac:plain-text-body></ac:structured-macro>
+<ac:structured-macro ac:name="info" ac:schema-version="1"><ac:rich-text-body><p>Read this first.</p></ac:rich-text-body></ac:structured-macro>
+<ac:structured-macro ac:name="warning" ac:schema-version="1"><ac:rich-text-body><p>Danger</p><ul><li>item</li></ul></ac:rich-text-body></ac:structured-macro>
+<p>See <ac:link><ri:page ri:content-title="Other Page" ri:space-key="DOC"/><ac:plain-text-link-body><![CDATA[the docs]]></ac:plain-text-link-body></ac:link> and <ac:link><ri:page ri:content-title="Same (space) page"/></ac:link>.</p>
+<p><ac:image ac:alt="diagram"><ri:attachment ri:filename="arch diagram.png"/></ac:image></p>
+<p><ac:image><ri:url ri:value="https://example.com/x.png"/></ac:image></p>
+<ac:task-list><ac:task><ac:task-id>1</ac:task-id><ac:task-status>complete</ac:task-status><ac:task-body>done it</ac:task-body></ac:task><ac:task><ac:task-id>2</ac:task-id><ac:task-status>incomplete</ac:task-status><ac:task-body>todo <strong>soon</strong></ac:task-body></ac:task></ac:task-list>
+<table><tbody><tr><th>Name</th><th>Value</th></tr><tr><td>a</td><td>1</td></tr></tbody></table>

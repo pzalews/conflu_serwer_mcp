@@ -1,0 +1,9 @@
+<ac:structured-macro ac:name="toc" ac:schema-version="1" ac:macro-id="t1"/>
+<p>Status: <ac:structured-macro ac:name="status" ac:schema-version="1"><ac:parameter ac:name="colour">Green</ac:parameter><ac:parameter ac:name="title">DONE</ac:parameter></ac:structured-macro> today.</p>
+<ac:structured-macro ac:name="jira" ac:schema-version="1"><ac:parameter ac:name="server">JIRA</ac:parameter><ac:parameter ac:name="jqlQuery">project = SEC AND status = Open</ac:parameter></ac:structured-macro>
+<ac:structured-macro ac:name="info" ac:schema-version="1"><ac:rich-text-body><p>Tracked in <ac:structured-macro ac:name="jira" ac:schema-version="1"><ac:parameter ac:name="key">SEC-1</ac:parameter></ac:structured-macro></p></ac:rich-text-body></ac:structured-macro>
+<ac:structured-macro ac:name="expand" ac:schema-version="1"><ac:parameter ac:name="title">Details</ac:parameter><ac:rich-text-body><p>Hidden &nbsp;text</p><ac:structured-macro ac:name="expand"><ac:rich-text-body><p>nested same-name</p></ac:rich-text-body></ac:structured-macro></ac:rich-text-body></ac:structured-macro>
+<ac:structured-macro ac:name="code" ac:schema-version="1"><ac:parameter ac:name="title">With title</ac:parameter><ac:plain-text-body><![CDATA[x = 1]]></ac:plain-text-body></ac:structured-macro>
+<ac:structured-macro ac:name="note" ac:schema-version="1"><ac:parameter ac:name="title">Titled panel</ac:parameter><ac:rich-text-body><p>body</p></ac:rich-text-body></ac:structured-macro>
+<p>Ping <ac:link><ri:user ri:userkey="8a7f"/></ac:link> about <ac:link><ri:page ri:content-title="A/B"/></ac:link>.</p>
+<table><tbody><tr><th colspan="2">Merged</th></tr><tr><td>1</td><td><ul><li>list in cell</li></ul></td></tr></tbody></table>

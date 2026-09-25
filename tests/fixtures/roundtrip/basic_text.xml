@@ -1,0 +1,8 @@
+<h1>Release notes</h1>
+<p>Plain <strong>bold</strong>, <em>italic</em>, <code>inline_code</code> and a <a href="https://example.com/a?b=1&amp;c=2">link</a>.</p>
+<p>Symbols: snake_case, 2 * 3, a &lt; b, AT&amp;T, &amp;lt; stays literal.</p>
+<h2>Lists</h2>
+<ul><li>one</li><li>two</li></ul>
+<ol><li>first</li><li>second</li></ol>
+<hr/>
+<blockquote><p>Quoted text</p></blockquote>
