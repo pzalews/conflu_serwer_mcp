@@ -68,15 +68,21 @@ CONFLUENCE_URL=https://confluence.yourcompany.com CONFLUENCE_TOKEN=xxx confluenc
 
 | Confluence | Markdown |
 |---|---|
-| headings, paragraphs, bold/italic, lists, links, simple tables | standard Markdown / GFM tables |
+| headings, paragraphs, bold/italic, strikethrough, nested lists, links, tables with a header row | standard Markdown / GFM tables |
+| superscript / subscript | inline `<sup>` / `<sub>` |
 | code macro | fenced block with language |
 | info / note / warning / tip panels | `> [!INFO]` / `> [!NOTE]` / `> [!WARNING]` / `> [!TIP]` |
 | link to a page | `[text](confluence:SPACE/Page%20Title)` |
 | attached image | `![alt](attachment:file.png)` |
+| link to an attachment | `[text](attachment:file.pdf)` |
 | task list | `- [ ]` / `- [x]` |
-| anything else (Jira, TOC, status, expand, complex tables, …) | raw XHTML, kept verbatim |
+| anything else (Jira, TOC, status, expand, dates (`<time>`), complex or header-less tables, …) | raw XHTML, kept verbatim |
 
 Keep the raw `<ac:…>` blocks unchanged when editing. `update_page` refuses an update that would drop macros unless `allow_macro_loss=true`. Use `format="storage"` for exact XHTML.
+
+### Lossy conversion
+
+Markdown cannot express everything Confluence stores. Reading a page as Markdown and writing it back drops: underline, text colours and highlights, paragraph/cell alignment and indentation, `<br>` line breaks inside table cells, and table/column widths. Macros, other unknown `<ac:…>`/`<ri:…>` elements and `<time>` dates are not lost — they pass through as raw XHTML. For heavily formatted pages, read and write with `format="storage"`.
 
 ## Read-only mode
 

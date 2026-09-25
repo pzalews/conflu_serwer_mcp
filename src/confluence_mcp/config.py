@@ -13,8 +13,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def _unquote(v: str) -> str:
-    """Strip surrounding quotes that Docker Compose passes through literally."""
-    return v.strip().strip('"').strip("'")
+    """Strip one pair of surrounding quotes that Docker Compose passes through literally.
+
+    Only a matching pair is removed, so a secret such as ``abc"`` keeps its quote.
+    """
+    v = v.strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        return v[1:-1]
+    return v
 
 
 class Settings(BaseSettings):

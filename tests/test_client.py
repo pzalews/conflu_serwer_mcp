@@ -69,6 +69,7 @@ async def test_error_text_never_contains_token(client: ConfluenceClient) -> None
     with pytest.raises(AuthenticationError) as info:
         await client.get("/x")
     assert "secret-token" not in str(info.value)
+    assert "CONFLUENCE_TOKEN (or CONFLUENCE_USERNAME/CONFLUENCE_PASSWORD)" in str(info.value)
 
 
 @respx.mock

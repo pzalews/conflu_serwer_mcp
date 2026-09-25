@@ -63,7 +63,11 @@ def _raise_for_status(response: httpx.Response) -> None:
     if status == 400:
         raise ValidationError(400, message)
     if status == 401:
-        raise AuthenticationError(401, "Authentication failed — check CONFLUENCE_TOKEN")
+        raise AuthenticationError(
+            401,
+            "Authentication failed — check CONFLUENCE_TOKEN "
+            "(or CONFLUENCE_USERNAME/CONFLUENCE_PASSWORD)",
+        )
     if status == 403:
         raise AuthorizationError(403, message or "Insufficient permissions")
     if status == 404:

@@ -72,3 +72,27 @@ def test_validation_error_does_not_echo_password() -> None:
     with pytest.raises(ValidationError) as exc:
         Settings(confluence_url=BASE, confluence_password="SuperSecret123")
     assert "SuperSecret123" not in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ('abc"', 'abc"'),
+        ("'abc", "'abc"),
+        ('"abc"', "abc"),
+        ("'abc'", "abc"),
+        ('""abc""', '"abc"'),
+        ("\"abc'", "\"abc'"),
+        (' "abc" ', "abc"),
+    ],
+)
+def test_unquote_strips_one_matching_pair(raw: str, expected: str) -> None:
+    s = make_settings(confluence_token=None, confluence_username="u", confluence_password=raw)
+    assert s.confluence_password == expected
+
+
+def test_compose_passes_timeout() -> None:
+    from pathlib import Path
+
+    compose = (Path(__file__).parent.parent / "docker-compose.yml").read_text()
+    assert "CONFLUENCE_TIMEOUT_SECONDS=${CONFLUENCE_TIMEOUT_SECONDS:-30}" in compose
