@@ -82,7 +82,7 @@ class _Builder:
             text = a.get_text()
             if text == title and not a.find(True):
                 body = ""
-            elif a.find(True):
+            elif a.find(True) or _GEN_TOKEN_RE.search(_inner_html(a)):
                 body = f"<ac:link-body>{_inner_html(a)}</ac:link-body>"
             else:
                 body = f"<ac:plain-text-link-body>{cdata(text)}</ac:plain-text-link-body>"
@@ -103,9 +103,11 @@ class _Builder:
         task_id = 0
         for ul in self.soup.find_all("ul"):
             items = ul.find_all("li", recursive=False)
-            if not items or not all(_TASK_RE.match(li.get_text()) for li in items):
+            if not items:
                 continue
-            tasks: list[str] = []
+
+            # First pass: validate that ALL items qualify as tasks
+            validations: list[tuple[Tag, Tag, re.Match[str]]] = []
             for li in items:
                 paragraph = li.find("p") if isinstance(li.contents[0], Tag) else None
                 holder = paragraph if isinstance(paragraph, Tag) else li
@@ -115,15 +117,21 @@ class _Builder:
                 m = _TASK_RE.match(str(first))
                 if not m:
                     break
-                first.replace_with(str(first)[m.end() :])
-                task_id += 1
-                status = "incomplete" if m.group(1) == " " else "complete"
-                tasks.append(
-                    f"<ac:task><ac:task-id>{task_id}</ac:task-id>"
-                    f"<ac:task-status>{status}</ac:task-status>"
-                    f"<ac:task-body>{_inner_html(holder).strip()}</ac:task-body></ac:task>"
-                )
+                validations.append((li, holder, m))
             else:
+                # All items qualified; now mutate and build
+                tasks: list[str] = []
+                for _li, holder, m in validations:
+                    first = holder.contents[0]
+                    if isinstance(first, NavigableString):
+                        first.replace_with(str(first)[m.end() :])
+                    task_id += 1
+                    status = "incomplete" if m.group(1) == " " else "complete"
+                    tasks.append(
+                        f"<ac:task><ac:task-id>{task_id}</ac:task-id>"
+                        f"<ac:task-status>{status}</ac:task-status>"
+                        f"<ac:task-body>{_inner_html(holder).strip()}</ac:task-body></ac:task>"
+                    )
                 self.replace(ul, "<ac:task-list>" + "".join(tasks) + "</ac:task-list>")
 
     def callouts(self) -> None:
@@ -171,8 +179,8 @@ def to_storage(md: str) -> str:
     builder = _Builder(soup)
     builder.code_blocks()
     builder.tables()
-    builder.links()
     builder.images()
+    builder.links()
     builder.task_lists()
     builder.callouts()
     text = re.sub(r"<p>" + _SEPARATOR + r"</p>\n?", "", str(soup))

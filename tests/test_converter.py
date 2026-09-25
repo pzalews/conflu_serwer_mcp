@@ -166,3 +166,22 @@ def test_st_adjacent_raw_blocks_not_wrapped_in_p() -> None:
     assert to_storage(md) == (
         '<ac:structured-macro ac:name="toc"/>\n<ac:structured-macro ac:name="jira"/>'
     )
+
+
+def test_st_image_inside_page_link_roundtrips() -> None:
+    """Images nested inside page links must be converted to ac:image, not dropped."""
+    storage = (
+        '<p><ac:link><ri:page ri:content-title="P"/><ac:link-body>'
+        '<ac:image ac:alt="x"><ri:attachment ri:filename="a.png"/></ac:image>'
+        "</ac:link-body></ac:link></p>"
+    )
+    result = to_storage(to_markdown(storage))
+    assert normalize(result) == normalize(storage)
+    assert "<img" not in result
+
+
+def test_st_partial_task_list_keeps_markers() -> None:
+    """If not all items in a list are tasks, the whole list stays as <ul> with markers intact."""
+    result = to_storage("- [ ] a\n- **[ ]** b\n")
+    assert "<ac:task-list>" not in result
+    assert "<li>[ ] a</li>" in result
