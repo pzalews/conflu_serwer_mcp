@@ -28,9 +28,9 @@ async def test_list_comments_with_reply(ctx: Any) -> None:
             json={
                 "results": [
                     {
-                        "id": "c2",
+                        "id": "102",
                         "version": {"number": 1, "when": "t", "by": {"displayName": "Bo"}},
-                        "ancestors": [{"id": "c1"}],
+                        "ancestors": [{"id": "101"}],
                         "body": {"storage": {"value": "<p>reply</p>"}},
                     }
                 ]
@@ -40,11 +40,11 @@ async def test_list_comments_with_reply(ctx: Any) -> None:
     out = await list_comments(ctx, "42")
     assert out["results"] == [
         {
-            "id": "c2",
+            "id": "102",
             "author": "Bo",
             "when": "t",
             "version": 1,
-            "parent_comment_id": "c1",
+            "parent_comment_id": "101",
             "body": "reply\n",
         }
     ]
@@ -57,29 +57,29 @@ async def test_add_reply_uses_container_type(ctx: Any) -> None:
         return_value=httpx.Response(200, json={"id": "42", "type": "blogpost"})
     )
     route = respx.post(f"{BASE}/rest/api/content").mock(
-        return_value=httpx.Response(200, json={"id": "c3"})
+        return_value=httpx.Response(200, json={"id": "103"})
     )
-    assert await add_comment(ctx, "42", "**ok**", parent_comment_id="c1") == {
-        "id": "c3",
+    assert await add_comment(ctx, "42", "**ok**", parent_comment_id="101") == {
+        "id": "103",
         "status": "created",
     }
     sent = json.loads(route.calls.last.request.content)
     assert sent["container"] == {"id": "42", "type": "blogpost"}
-    assert sent["ancestors"] == [{"id": "c1"}]
+    assert sent["ancestors"] == [{"id": "101"}]
     assert sent["body"]["storage"]["value"] == "<p><strong>ok</strong></p>"
 
 
 @respx.mock
 async def test_update_and_delete_comment(ctx: Any) -> None:
     comment = page(type="comment", storage='<p>x</p><ac:structured-macro ac:name="toc"/>')
-    respx.get(f"{BASE}/rest/api/content/c1").mock(return_value=httpx.Response(200, json=comment))
-    put = respx.put(f"{BASE}/rest/api/content/c1").mock(
+    respx.get(f"{BASE}/rest/api/content/101").mock(return_value=httpx.Response(200, json=comment))
+    put = respx.put(f"{BASE}/rest/api/content/101").mock(
         return_value=httpx.Response(200, json=comment)
     )
-    respx.delete(f"{BASE}/rest/api/content/c1").mock(return_value=httpx.Response(204))
-    await update_comment(ctx, "c1", "plain")  # macro loss allowed for comments
+    respx.delete(f"{BASE}/rest/api/content/101").mock(return_value=httpx.Response(204))
+    await update_comment(ctx, "101", "plain")  # macro loss allowed for comments
     assert json.loads(put.calls.last.request.content)["type"] == "comment"
-    assert (await delete_comment(ctx, "c1"))["status"] == "deleted"
+    assert (await delete_comment(ctx, "101"))["status"] == "deleted"
 
 
 @respx.mock

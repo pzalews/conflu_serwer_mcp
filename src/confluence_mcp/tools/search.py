@@ -5,11 +5,7 @@ from typing import Any, Literal
 from fastmcp import Context
 
 from ..logging_setup import log_tool_call
-from ._common import get_client, list_result, page_params
-
-
-def _cql_string(value: str) -> str:
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+from ._common import cql_string, get_client, list_result, page_params
 
 
 async def _run_search(ctx: Context, cql: str, limit: int, start: int) -> dict[str, Any]:
@@ -50,9 +46,9 @@ async def search_text(
     limit: int = 25,
 ) -> dict[str, Any]:
     """Full-text search, newest first. Optionally restrict to a space and content type."""
-    clauses = [f"text ~ {_cql_string(text)}"]
+    clauses = [f"text ~ {cql_string(text)}"]
     if space_key:
-        clauses.append(f"space = {_cql_string(space_key)}")
+        clauses.append(f"space = {cql_string(space_key)}")
     if type:
         clauses.append(f"type = {type}")
     cql = " AND ".join(clauses) + " ORDER BY lastmodified DESC"

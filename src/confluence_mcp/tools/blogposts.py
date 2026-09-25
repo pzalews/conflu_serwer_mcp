@@ -6,7 +6,15 @@ from fastmcp import Context
 
 from ..content import Format, compact, create_content, get_content, update_content
 from ..logging_setup import log_tool_call
-from ._common import get_client, list_result, page_params, require_writable, resolve_space
+from ._common import (
+    check_content_id,
+    cql_string,
+    get_client,
+    list_result,
+    page_params,
+    require_writable,
+    resolve_space,
+)
 
 
 async def list_blog_posts(
@@ -16,7 +24,7 @@ async def list_blog_posts(
     key = resolve_space(ctx, space_key)
     async with log_tool_call("list_blog_posts", space=key):
         client = get_client(ctx)
-        cql = f'type = blogpost AND space = "{key}" ORDER BY created DESC'
+        cql = f"type = blogpost AND space = {cql_string(key)} ORDER BY created DESC"
         data = await client.get(
             "/rest/api/content/search",
             params={"cql": cql, "expand": "space,version", **page_params(limit, start)},
@@ -28,6 +36,7 @@ async def get_blog_post(
     ctx: Context, blog_post_id: str, format: Format = "markdown"
 ) -> dict[str, Any]:
     """Get a blog post. Body format and macro rules are the same as get_page."""
+    check_content_id(blog_post_id, "blog_post_id")
     async with log_tool_call("get_blog_post", page_id=blog_post_id):
         return await get_content(get_client(ctx), blog_post_id, format)
 
@@ -58,6 +67,7 @@ async def update_blog_post(
 ) -> dict[str, Any]:
     """Update a blog post. Same version and macro safeguards as update_page."""
     require_writable(ctx, "update_blog_post")
+    check_content_id(blog_post_id, "blog_post_id")
     async with log_tool_call("update_blog_post", page_id=blog_post_id):
         return await update_content(
             get_client(ctx),

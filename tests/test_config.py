@@ -64,3 +64,11 @@ def test_redacted_hides_secrets() -> None:
     assert "secret-token" not in text
     assert "zzz" not in text
     assert s.redacted()["auth_method"] == "token"
+
+
+def test_validation_error_does_not_echo_password() -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError) as exc:
+        Settings(confluence_url=BASE, confluence_password="SuperSecret123")
+    assert "SuperSecret123" not in str(exc.value)

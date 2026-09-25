@@ -6,7 +6,7 @@ from fastmcp import Context
 
 from ..content import Format, render_body, to_storage_body, update_content
 from ..logging_setup import log_tool_call
-from ._common import get_client, list_result, page_params, require_writable
+from ._common import check_content_id, get_client, list_result, page_params, require_writable
 
 
 def _comment(data: dict[str, Any], fmt: Format) -> dict[str, Any]:
@@ -27,6 +27,7 @@ async def list_comments(
     ctx: Context, content_id: str, format: Format = "markdown", limit: int = 25, start: int = 0
 ) -> dict[str, Any]:
     """List comments (including replies) on a page or blog post."""
+    check_content_id(content_id, "content_id")
     async with log_tool_call("list_comments", page_id=content_id):
         data = await get_client(ctx).get(
             f"/rest/api/content/{content_id}/child/comment",
@@ -48,6 +49,9 @@ async def add_comment(
 ) -> dict[str, Any]:
     """Add a comment to a page or blog post, or reply to a comment (parent_comment_id)."""
     require_writable(ctx, "add_comment")
+    check_content_id(content_id, "content_id")
+    if parent_comment_id is not None:
+        check_content_id(parent_comment_id, "parent_comment_id")
     async with log_tool_call("add_comment", page_id=content_id):
         client = get_client(ctx)
         container = await client.get(f"/rest/api/content/{content_id}")
@@ -69,6 +73,7 @@ async def update_comment(
 ) -> dict[str, Any]:
     """Replace the text of a comment (version bumped automatically)."""
     require_writable(ctx, "update_comment")
+    check_content_id(comment_id, "comment_id")
     async with log_tool_call("update_comment", page_id=comment_id):
         return await update_content(
             get_client(ctx), comment_id, body=body, fmt=format, allow_macro_loss=True
@@ -78,6 +83,7 @@ async def update_comment(
 async def delete_comment(ctx: Context, comment_id: str) -> dict[str, Any]:
     """Delete a comment."""
     require_writable(ctx, "delete_comment")
+    check_content_id(comment_id, "comment_id")
     async with log_tool_call("delete_comment", page_id=comment_id):
         await get_client(ctx).delete(f"/rest/api/content/{comment_id}")
         return {"id": comment_id, "status": "deleted"}

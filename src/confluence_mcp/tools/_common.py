@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from fastmcp import Context
@@ -11,6 +12,31 @@ from ..config import Settings
 from ..exceptions import ReadOnlyModeError
 
 MAX_LIMIT = 100
+
+# Attachment ids come back from Confluence Server as "att<digits>".
+_CONTENT_ID_RE = re.compile(r"(?:att)?[0-9]+")
+# Space keys are letters/digits/underscore; personal spaces are "~username", and
+# usernames may contain '.', '@' and '-'. Nothing here can form a path separator.
+_SPACE_KEY_RE = re.compile(r"(?!\.{1,2}$)[A-Za-z0-9_~.@-]+")
+
+
+def check_content_id(value: str, name: str = "content_id") -> str:
+    """Validate a caller-supplied content/attachment/comment id before it enters a path."""
+    if not isinstance(value, str) or not _CONTENT_ID_RE.fullmatch(value):
+        raise ValueError(f"{name} must be a numeric Confluence id, got {value!r}")
+    return value
+
+
+def check_space_key(value: str) -> str:
+    """Validate a space key before it enters a REST path."""
+    if not isinstance(value, str) or not _SPACE_KEY_RE.fullmatch(value):
+        raise ValueError(f"space_key is not a valid Confluence space key: {value!r}")
+    return value
+
+
+def cql_string(value: str) -> str:
+    """Quote a value as a CQL string literal."""
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def get_client(ctx: Context) -> ConfluenceClient:
@@ -33,7 +59,7 @@ def resolve_space(ctx: Context, space_key: str | None) -> str:
     resolved = space_key or get_settings(ctx).confluence_default_space
     if not resolved:
         raise ValueError("space_key is required when CONFLUENCE_DEFAULT_SPACE is not set")
-    return resolved
+    return check_space_key(resolved)
 
 
 def page_params(limit: int, start: int) -> dict[str, int]:

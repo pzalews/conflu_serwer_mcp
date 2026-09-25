@@ -7,13 +7,14 @@ from fastmcp import Context
 from ..content import Format, get_content, restore_version
 from ..exceptions import NotFoundError
 from ..logging_setup import log_tool_call
-from ._common import get_client, page_params, require_writable
+from ._common import check_content_id, get_client, page_params, require_writable
 
 _VERSION_PATHS = ("/rest/experimental/content/{id}/version", "/rest/api/content/{id}/version")
 
 
 async def get_page_history(ctx: Context, page_id: str, limit: int = 25) -> list[dict[str, Any]]:
     """List a page's versions, newest first."""
+    check_content_id(page_id, "page_id")
     async with log_tool_call("get_page_history", page_id=page_id):
         client = get_client(ctx)
         for template in _VERSION_PATHS:
@@ -37,6 +38,7 @@ async def get_page_version(
     ctx: Context, page_id: str, version: int, format: Format = "markdown"
 ) -> dict[str, Any]:
     """Get the content of a specific historical version of a page."""
+    check_content_id(page_id, "page_id")
     async with log_tool_call("get_page_version", page_id=page_id):
         return await get_content(get_client(ctx), page_id, format, version=version)
 
@@ -44,5 +46,6 @@ async def get_page_version(
 async def restore_page_version(ctx: Context, page_id: str, version: int) -> dict[str, Any]:
     """Restore an old version by saving its content as a new version."""
     require_writable(ctx, "restore_page_version")
+    check_content_id(page_id, "page_id")
     async with log_tool_call("restore_page_version", page_id=page_id):
         return await restore_version(get_client(ctx), page_id, version)

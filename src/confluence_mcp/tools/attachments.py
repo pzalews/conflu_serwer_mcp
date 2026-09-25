@@ -10,7 +10,14 @@ from fastmcp import Context
 from ..client import ConfluenceClient
 from ..exceptions import NotFoundError, PayloadTooLargeError
 from ..logging_setup import log_tool_call
-from ._common import get_client, get_settings, list_result, page_params, require_writable
+from ._common import (
+    check_content_id,
+    get_client,
+    get_settings,
+    list_result,
+    page_params,
+    require_writable,
+)
 
 _TEXT_TYPES = {"application/json", "application/xml", "application/javascript"}
 
@@ -52,6 +59,7 @@ async def list_attachments(
     ctx: Context, content_id: str, limit: int = 25, start: int = 0
 ) -> dict[str, Any]:
     """List attachments of a page or blog post."""
+    check_content_id(content_id, "content_id")
     async with log_tool_call("list_attachments", page_id=content_id):
         client = get_client(ctx)
         data = await client.get(
@@ -74,6 +82,9 @@ async def download_attachment(
     """
     if (filename is None) == (attachment_id is None):
         raise ValueError("Pass exactly one of filename or attachment_id")
+    check_content_id(content_id, "content_id")
+    if attachment_id is not None:
+        check_content_id(attachment_id, "attachment_id")
     max_bytes = get_settings(ctx).confluence_attachment_max_bytes
     async with log_tool_call("download_attachment", page_id=content_id):
         client = get_client(ctx)
@@ -117,6 +128,7 @@ async def upload_attachment(
     Uploading an existing filename adds a new version of that attachment.
     """
     require_writable(ctx, "upload_attachment")
+    check_content_id(content_id, "content_id")
     if (content_base64 is None) == (text is None):
         raise ValueError("Pass exactly one of content_base64 or text")
     if content_base64 is not None:
@@ -150,6 +162,7 @@ async def upload_attachment(
 async def delete_attachment(ctx: Context, attachment_id: str) -> dict[str, Any]:
     """Delete an attachment (moves it to the trash)."""
     require_writable(ctx, "delete_attachment")
+    check_content_id(attachment_id, "attachment_id")
     async with log_tool_call("delete_attachment", page_id=attachment_id):
         await get_client(ctx).delete(f"/rest/api/content/{attachment_id}")
         return {"id": attachment_id, "status": "deleted"}

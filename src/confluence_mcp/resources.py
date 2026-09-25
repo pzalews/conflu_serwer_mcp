@@ -6,7 +6,7 @@ from typing import Any
 from fastmcp import Context, FastMCP
 
 from .content import get_content
-from .tools._common import get_client
+from .tools._common import check_content_id, check_space_key, get_client
 
 
 def register_resources(mcp: FastMCP) -> None:
@@ -20,6 +20,7 @@ def register_resources(mcp: FastMCP) -> None:
     @mcp.resource("confluence://space/{space_key}")
     async def space_resource(space_key: str, ctx: Context) -> str:
         """A space's details and its top-level pages."""
+        check_space_key(space_key)
         client = get_client(ctx)
         space = await client.get(
             f"/rest/api/space/{space_key}", params={"expand": "description.plain,homepage"}
@@ -41,6 +42,7 @@ def register_resources(mcp: FastMCP) -> None:
     @mcp.resource("confluence://page/{page_id}", mime_type="text/markdown")
     async def page_resource(page_id: str, ctx: Context) -> str:
         """A page as Markdown with a short metadata header."""
+        check_content_id(page_id, "page_id")
         page = await get_content(get_client(ctx), page_id, "markdown")
         version = (page.get("version") or {}).get("number")
         space = (page.get("space") or {}).get("key")
