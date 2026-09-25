@@ -108,24 +108,26 @@ Validation fails at startup unless a token or both username and password are set
 
 Page content is exchanged as **Markdown by default**; every content read/write tool takes `format: Literal["markdown", "storage"] = "markdown"`. `storage` returns/accepts raw Confluence storage XHTML unchanged.
 
-Libraries: `markdownify` (read direction, with a custom converter) and `markdown` (write direction, extensions `tables`, `fenced_code`, `sane_lists`), with `beautifulsoup4` (`html.parser`) post-processing the HTML for callouts, task lists, code blocks and `confluence:`/`attachment:` links. `ac:`/`ri:` elements are located by a text-level scanner (skipping CDATA, comments and, in Markdown, code) rather than an XML parser, so unknown elements can be copied byte-for-byte and HTML entities such as `&nbsp;` need no special handling. `lxml` is used only in tests, to normalise XML for comparisons.
+Libraries: `markdownify` (read direction, with a custom converter) and `markdown-it-py` (write direction; CommonMark preset with `table` and `strikethrough` enabled, `html=True` so raw inline HTML passes through, linkify off), with `beautifulsoup4` (`html.parser`) post-processing the HTML for callouts, task lists, code blocks and `confluence:`/`attachment:` links. `ac:`/`ri:` elements are located by a text-level scanner (skipping CDATA, comments and, in Markdown, code) rather than an XML parser, so unknown elements can be copied byte-for-byte and HTML entities such as `&nbsp;` need no special handling. `lxml` is used only in tests, to normalise XML for comparisons.
 
 ### Mapping
 
 | Storage | Markdown |
 |---|---|
-| `h1`–`h6`, `p`, `strong`/`b`, `em`/`i`, `code`, `ul`/`ol`/`li`, `a href`, `hr`, `blockquote`, `br` | standard Markdown |
-| simple `table` (no `rowspan`/`colspan`, cells contain only inline content) | GFM table |
+| `h1`–`h6`, `p`, `strong`/`b`, `em`/`i`, `code`, `ul`/`ol`/`li` (nested), `a href`, `hr`, `blockquote`, `br`, `s`/`del` | standard Markdown (`~~x~~` for strikethrough; text that looks like block syntax at a line start is backslash-escaped) |
+| `sup`, `sub` | kept as inline HTML |
+| simple `table` (header row of `th` cells, no `rowspan`/`colspan`, cells contain only inline content) | GFM table (`|` in cells escaped as `\|`) |
 | complex `table` | raw HTML block (passthrough) |
 | `ac:structured-macro ac:name="code"` with `language` param and `ac:plain-text-body` CDATA | fenced block ```` ```lang ```` |
 | `ac:structured-macro ac:name="info"`/`note`/`warning`/`tip` with `ac:rich-text-body` | `> [!INFO]` / `> [!NOTE]` / `> [!WARNING]` / `> [!TIP]` followed by the body as quoted lines |
 | `ac:link` + `ri:page ri:content-title="T"` (optional `ri:space-key="S"`) with link body | `[text](confluence:S/T)` or `[text](confluence:T)`; URL-encode spaces as `%20` in the target |
 | `ac:image` + `ri:attachment ri:filename="f"` | `![alt](attachment:f)` |
+| `ac:link` + `ri:attachment ri:filename="f"` with optional link body | `[text](attachment:f)` |
 | `ac:image` + `ri:url ri:value="u"` | `![alt](u)` |
 | `ac:task-list` / `ac:task` with `ac:task-status` complete/incomplete | `- [x]` / `- [ ]` |
-| any other `ac:structured-macro`, `ac:*` or `ri:*` element (jira, toc, include, status, expand, excerpt, anchor, …) | the element's original XHTML emitted verbatim as a raw HTML block, separated by blank lines |
+| any other `ac:structured-macro`, `ac:*` or `ri:*` element (jira, toc, include, status, expand, excerpt, anchor, …), and `<time>` | the element's original XHTML emitted verbatim as a raw HTML block, separated by blank lines |
 
-**Passthrough rule:** unknown elements are swapped for opaque tokens before `markdownify`/`markdown` run and swapped back afterwards (paragraphs holding only such tokens are unwrapped), so `to_storage` restores unknown macros byte-for-byte. For inline occurrences (e.g. a `status` macro inside a paragraph), the raw XHTML is emitted inline; `markdown` also preserves inline raw HTML. Tool docstrings tell the model: *"Raw `<ac:…>`/`<ri:…>` blocks in the Markdown are Confluence macros; keep them unchanged unless you intend to modify them."*
+**Passthrough rule:** unknown elements are swapped for opaque tokens before `markdownify`/`markdown-it-py` run and swapped back afterwards (paragraphs holding only such tokens are unwrapped), so `to_storage` restores unknown macros byte-for-byte. For inline occurrences (e.g. a `status` macro inside a paragraph), the raw XHTML is emitted inline; `markdown-it-py` (with `html=True`) also preserves inline raw HTML. Tool docstrings tell the model: *"Raw `<ac:…>`/`<ri:…>` blocks in the Markdown are Confluence macros; keep them unchanged unless you intend to modify them."*
 
 ### Macro inventory
 
@@ -268,8 +270,8 @@ ConfluenceMCPError
 
 ## Dependencies
 
-Runtime: `fastmcp>=3.3.1`, `httpx>=0.28.1,<1.0`, `pydantic>=2.11,<3.0`, `pydantic-settings>=2.7,<3.0`, `tenacity>=9.0,<10.0`, `structlog>=25.1`, `markdown>=3.7`, `markdownify>=1.1`, `beautifulsoup4>=4.12`, `lxml>=5.0`.
-Dev: `pytest`, `pytest-asyncio`, `respx`, `ruff`, `mypy`, `types-Markdown`, `lxml-stubs`.
+Runtime: `fastmcp>=3.3.1,<5`, `httpx>=0.28.1,<1.0`, `pydantic>=2.11,<3.0`, `pydantic-settings>=2.7,<3.0`, `tenacity>=9.0,<10.0`, `structlog>=25.1`, `markdown-it-py>=3.0`, `markdownify>=1.1`, `beautifulsoup4>=4.12`, `lxml>=5.0`.
+Dev: `pytest`, `pytest-asyncio`, `respx`, `ruff`, `mypy`, `lxml-stubs`.
 Python `>=3.12`; ruff line-length 100, rules `E,W,F,UP,B,I`; mypy strict.
 
 ## Testing

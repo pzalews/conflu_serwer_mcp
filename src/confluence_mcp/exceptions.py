@@ -30,8 +30,10 @@ class MacroLossError(ConfluenceMCPError):
         self.lost = lost
         listed = ", ".join(f"{name}×{count}" for name, count in sorted(lost.items()))
         super().__init__(
-            f"Update would remove macros/elements: {listed}. Keep the raw <ac:…> blocks "
-            "from the page body, or pass allow_macro_loss=true if removing them is intended."
+            f"The Markdown conversion or the edit would remove these macros/elements: {listed}. "
+            "Re-read the page and keep its raw <ac:…> blocks unchanged in the new body, or "
+            'edit it with format="storage". Pass allow_macro_loss=true only if removing '
+            "them is intended."
         )
 
 

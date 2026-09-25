@@ -200,3 +200,13 @@ async def test_restore_version(client: ConfluenceClient) -> None:
     sent = json.loads(put.calls.last.request.content)
     assert sent["body"]["storage"]["value"] == "<p>v1</p>"
     assert sent["version"] == {"number": 4, "message": "Restored version 1"}
+
+
+def test_macro_loss_message_does_not_push_override() -> None:
+    from collections import Counter
+
+    msg = str(MacroLossError(Counter({"toc": 1})))
+    assert "toc×1" in msg
+    assert "Markdown conversion or the edit would remove" in msg
+    assert 'format="storage"' in msg and "Re-read the page" in msg
+    assert "allow_macro_loss=true only if removing them is intended" in msg

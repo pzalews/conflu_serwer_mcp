@@ -185,3 +185,136 @@ def test_st_partial_task_list_keeps_markers() -> None:
     result = to_storage("- [ ] a\n- **[ ]** b\n")
     assert "<ac:task-list>" not in result
     assert "<li>[ ] a</li>" in result
+
+
+# ── final-review fixes ────────────────────────────────────────────────────────
+
+
+def _roundtrips(storage: str) -> None:
+    md = to_markdown(storage)
+    assert normalize(to_storage(md)) == normalize(storage), md
+    assert to_markdown(to_storage(md)) == md
+
+
+def test_table_cell_pipe_roundtrips() -> None:
+    _roundtrips(
+        "<table><tbody><tr><th>h1</th><th>h2</th></tr>"
+        "<tr><td>a | b</td><td><strong>x</strong></td></tr></tbody></table>"
+    )
+
+
+@pytest.mark.parametrize(
+    "storage",
+    [
+        "<ul><li>a<ul><li>b</li></ul></li></ul>",
+        "<ol><li>one<ol><li>sub</li></ol></li></ol>",
+    ],
+)
+def test_nested_lists_roundtrip(storage: str) -> None:
+    _roundtrips(storage)
+
+
+def test_st_two_space_nested_list() -> None:
+    assert normalize(to_storage("- a\n  - b\n")) == normalize(
+        "<ul><li>a<ul><li>b</li></ul></li></ul>"
+    )
+
+
+def test_st_list_directly_after_paragraph() -> None:
+    assert normalize(to_storage("Intro:\n- a\n- b\n")) == normalize(
+        "<p>Intro:</p><ul><li>a</li><li>b</li></ul>"
+    )
+
+
+def test_st_fenced_code_inside_callout() -> None:
+    assert normalize(to_storage("> [!INFO]\n> ```py\n> x < y\n> ```\n")) == normalize(
+        '<ac:structured-macro ac:name="info"><ac:rich-text-body>'
+        '<ac:structured-macro ac:name="code"><ac:parameter ac:name="language">py'
+        "</ac:parameter><ac:plain-text-body><![CDATA[x < y]]></ac:plain-text-body>"
+        "</ac:structured-macro></ac:rich-text-body></ac:structured-macro>"
+    )
+
+
+def test_st_output_is_xhtml() -> None:
+    out = to_storage("a  \nb\n\n---\n\n<br>\n")
+    assert "<br/>" in out and "<hr/>" in out
+    assert "<br>" not in out and "<hr>" not in out
+    normalize(out)  # parses as XML
+
+
+@pytest.mark.parametrize(
+    "storage",
+    [
+        "<p>- not a list</p>",
+        "<p># not heading</p>",
+        "<p>+ plus</p>",
+        "<p>* star</p>",
+        "<p>&gt; not quote</p>",
+        "<p>2026. A year</p>",
+        "<p>1) paren</p>",
+        "<p>a<br/>- after break</p>",
+    ],
+)
+def test_markdown_like_paragraph_text_roundtrips(storage: str) -> None:
+    _roundtrips(storage)
+
+
+def test_raw_macro_in_link_body_roundtrips() -> None:
+    _roundtrips(
+        '<p><ac:link><ri:page ri:content-title="P"/>'
+        '<ac:link-body>see <ac:emoticon ac:name="tick"/></ac:link-body></ac:link></p>'
+    )
+
+
+@pytest.mark.parametrize(
+    "storage",
+    [
+        '<p>Due <time datetime="2026-10-01"/> ok</p>',
+        '<p>Due <time datetime="2026-10-01">1 Oct</time> ok</p>',
+    ],
+)
+def test_time_element_passes_through(storage: str) -> None:
+    _roundtrips(storage)
+    assert "<time" in to_markdown(storage)
+
+
+@pytest.mark.parametrize("tag", ["s", "del"])
+def test_strikethrough_roundtrips(tag: str) -> None:
+    md = to_markdown(f"<p>a <{tag}>gone</{tag}> b</p>")
+    assert md == "a ~~gone~~ b\n"
+    assert normalize(to_storage(md)) == normalize("<p>a <s>gone</s> b</p>")
+
+
+@pytest.mark.parametrize("storage", ["<p>x<sup>2</sup></p>", "<p>H<sub>2</sub>O</p>"])
+def test_sup_sub_roundtrip(storage: str) -> None:
+    _roundtrips(storage)
+
+
+def test_headerless_table_passes_through() -> None:
+    storage = (
+        "<table><tbody><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></tbody></table>"
+    )
+    _roundtrips(storage)
+    assert "<th" not in to_storage(to_markdown(storage))
+
+
+@pytest.mark.parametrize(
+    "storage",
+    [
+        '<p><ac:link><ri:attachment ri:filename="spec v2.pdf"/></ac:link></p>',
+        '<p><ac:link><ri:attachment ri:filename="x.pdf"/>'
+        "<ac:plain-text-link-body><![CDATA[the spec]]></ac:plain-text-link-body></ac:link></p>",
+    ],
+)
+def test_attachment_link_roundtrips(storage: str) -> None:
+    _roundtrips(storage)
+
+
+def test_st_attachment_link_markdown() -> None:
+    assert normalize(to_storage("[f](attachment:x.pdf)\n")) == normalize(
+        '<p><ac:link><ri:attachment ri:filename="x.pdf"/>'
+        "<ac:plain-text-link-body><![CDATA[f]]></ac:plain-text-link-body></ac:link></p>"
+    )
+    assert to_markdown('<p><ac:link><ri:attachment ri:filename="a b.pdf"/></ac:link></p>') == (
+        "[a b.pdf](attachment:a%20b.pdf)\n"
+    )

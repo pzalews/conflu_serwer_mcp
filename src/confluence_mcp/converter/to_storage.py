@@ -6,9 +6,9 @@ import html
 import re
 from urllib.parse import unquote
 
-import markdown
 from bs4 import BeautifulSoup, Tag
 from bs4.element import NavigableString
+from markdown_it import MarkdownIt
 
 from .macros import PANEL_MACROS, cdata, find_elements
 
@@ -18,9 +18,7 @@ _GEN_TOKEN = "XCFGEN{:04d}X"
 _GEN_TOKEN_RE = re.compile(r"XCFGEN(\d{4})X")
 _CALLOUT_RE = re.compile(r"^\s*\[!(" + "|".join(PANEL_MACROS) + r")\]\s*", re.IGNORECASE)
 _TASK_RE = re.compile(r"^\[([ xX])\]\s+")
-_EXTENSIONS = ["tables", "fenced_code", "sane_lists"]
-_SEPARATOR = "XCFSEPX"
-_QUOTE_GAP_RE = re.compile(r"(^>[^\n]*\n)(?:[ \t]*\n)+(?=>)", re.MULTILINE)
+_MD = MarkdownIt("commonmark", {"html": True, "linkify": False}).enable(["table", "strikethrough"])
 
 
 def _protect_raw(md: str) -> tuple[str, list[str]]:
@@ -72,6 +70,15 @@ class _Builder:
             body = f"<ac:plain-text-body>{cdata(text)}</ac:plain-text-body>"
             self.replace(pre, _macro("code", body, {"language": lang} if lang else None))
 
+    def _link_body(self, a: Tag, default_text: str) -> str:
+        text = a.get_text()
+        inner = _inner_html(a)
+        if a.find(True) or _GEN_TOKEN_RE.search(inner) or _RAW_TOKEN_RE.search(inner):
+            return f"<ac:link-body>{inner}</ac:link-body>"
+        if text == default_text:
+            return ""
+        return f"<ac:plain-text-link-body>{cdata(text)}</ac:plain-text-link-body>"
+
     def links(self) -> None:
         for a in self.soup.find_all("a", href=re.compile(r"^confluence:")):
             target = str(a["href"])[len("confluence:") :]
@@ -79,14 +86,14 @@ class _Builder:
             title = unquote(title)
             space_attr = f' ri:space-key="{html.escape(unquote(space))}"' if sep else ""
             page = f'<ri:page ri:content-title="{html.escape(title)}"{space_attr}/>'
-            text = a.get_text()
-            if text == title and not a.find(True):
-                body = ""
-            elif a.find(True) or _GEN_TOKEN_RE.search(_inner_html(a)):
-                body = f"<ac:link-body>{_inner_html(a)}</ac:link-body>"
-            else:
-                body = f"<ac:plain-text-link-body>{cdata(text)}</ac:plain-text-link-body>"
+            body = self._link_body(a, title)
             self.replace(a, f"<ac:link>{page}{body}</ac:link>")
+
+    def attachment_links(self) -> None:
+        for a in self.soup.find_all("a", href=re.compile(r"^attachment:")):
+            filename = unquote(str(a["href"])[len("attachment:") :])
+            ref = f'<ri:attachment ri:filename="{html.escape(filename)}"/>'
+            self.replace(a, f"<ac:link>{ref}{self._link_body(a, filename)}</ac:link>")
 
     def images(self) -> None:
         for img in self.soup.find_all("img"):
@@ -171,17 +178,14 @@ def _restore(text: str, generated: list[str], raws: list[str]) -> str:
 def to_storage(md: str) -> str:
     """Convert Markdown (as produced by ``to_markdown``) to Confluence storage XHTML."""
     protected, raws = _protect_raw(md)
-    # Python-Markdown joins '> a' + blank line + '> b' into one blockquote; CommonMark
-    # (and our callouts) treat them as two, so put a separator paragraph between them.
-    protected = _QUOTE_GAP_RE.sub(r"\1\n" + _SEPARATOR + "\n\n", protected)
-    rendered = markdown.markdown(protected, extensions=_EXTENSIONS, output_format="xhtml")
+    rendered = _MD.render(protected)
     soup = BeautifulSoup(rendered, "html.parser")
     builder = _Builder(soup)
     builder.code_blocks()
     builder.tables()
     builder.images()
     builder.links()
+    builder.attachment_links()
     builder.task_lists()
     builder.callouts()
-    text = re.sub(r"<p>" + _SEPARATOR + r"</p>\n?", "", str(soup))
-    return _restore(text, builder.generated, raws).strip()
+    return _restore(str(soup), builder.generated, raws).strip()

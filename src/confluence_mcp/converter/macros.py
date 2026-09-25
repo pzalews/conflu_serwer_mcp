@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 PANEL_MACROS = ("info", "note", "warning", "tip")
 
 _TAG_RE = re.compile(
-    r"<(/?)((?:ac|ri):[\w-]+)((?:\s+[\w:-]+\s*=\s*(?:\"[^\"]*\"|'[^']*'))*)\s*(/?)>"
+    r"<(/?)((?:ac|ri):[\w-]+|time)((?:\s+[\w:-]+\s*=\s*(?:\"[^\"]*\"|'[^']*'))*)\s*(/?)>"
 )
 _ATTR_RE = re.compile(r"([\w:-]+)\s*=\s*(?:\"([^\"]*)\"|'([^']*)')")
 _CDATA_RE = re.compile(r"<!\[CDATA\[.*?\]\]>", re.DOTALL)
@@ -73,7 +73,7 @@ def _in_ranges(pos: int, ranges: list[tuple[int, int]]) -> bool:
 
 
 def find_elements(text: str, *, markdown: bool = False) -> list[Element]:
-    """Return the outermost ac:/ri: elements in ``text`` in document order.
+    """Return the outermost ac:/ri: (and ``<time>``) elements in ``text`` in document order.
 
     CDATA sections and comments are skipped; with ``markdown=True`` fenced code
     blocks and inline code spans are skipped too. An element whose closing tag is

@@ -60,13 +60,23 @@ def _panel_macro(el: Element, raws: list[str]) -> str | None:
     return f"<blockquote><p>[!{kind}]</p>{_prepare(children[0].inner, raws)}</blockquote>"
 
 
+def _attachment_link(ref: Element, text: str | None) -> str | None:
+    if set(ref.attrs) != {"ri:filename"} or ref.inner:
+        return None
+    filename = html.unescape(ref.attrs["ri:filename"])
+    href = "attachment:" + quote(filename, safe="")
+    return (
+        f'<a href="{html.escape(href)}">{text if text is not None else html.escape(filename)}</a>'
+    )
+
+
 def _link(el: Element, raws: list[str]) -> str | None:
     if el.attrs:
         return None
     page: Element | None = None
     text: str | None = None
     for child in el.children():
-        if child.name == "ri:page" and page is None:
+        if child.name in ("ri:page", "ri:attachment") and page is None:
             page = child
         elif child.name == "ac:plain-text-link-body" and text is None:
             text = html.escape(cdata_text(child.inner))
@@ -74,6 +84,8 @@ def _link(el: Element, raws: list[str]) -> str | None:
             text = _prepare(child.inner, raws)
         else:
             return None
+    if page is not None and page.name == "ri:attachment":
+        return _attachment_link(page, text)
     if page is None or not set(page.attrs) <= {"ri:content-title", "ri:space-key"}:
         return None
     title = html.unescape(page.attrs.get("ri:content-title", ""))
@@ -161,6 +173,12 @@ def _prepare(storage: str, raws: list[str]) -> str:
 def _is_complex_table(table: Tag) -> bool:
     if table.find("table"):
         return True
+    first_row = table.find("tr")
+    if not isinstance(first_row, Tag):
+        return True
+    first_cells = first_row.find_all(["td", "th"], recursive=False)
+    if not first_cells or any(c.name != "th" for c in first_cells):
+        return True  # Markdown tables always have a header row
     for cell in table.find_all(["td", "th"]):
         if cell.get("rowspan", "1") != "1" or cell.get("colspan", "1") != "1":
             return True
@@ -170,6 +188,52 @@ def _is_complex_table(table: Tag) -> bool:
 
 
 _ENTITY_LIKE_RE = re.compile(r"&(?=#?\w+;)")
+
+# Text at the start of a Markdown line that would otherwise be read as block syntax:
+# ATX heading, bullet / thematic break / setext underline, block quote, code fence,
+# ordered-list number.
+_LINE_MARKER_RE = re.compile(
+    r"^(?P<indent>[ \t]*)(?:"
+    r"(?P<num>\d{1,9})(?=[.)](?:[ \t]|$))"
+    r"|(?P<mark>#{1,6}(?=[ \t]|$)|[-+](?=[ \t]|$)|-(?=-*[ \t]*$)|=(?==*[ \t]*$)|>|`{3}|~{3})"
+    r")",
+    re.MULTILINE,
+)
+# Inline elements whose Markdown form adds nothing before their text.
+_TRANSPARENT_INLINE = {"span", "u", "font", "small", "big", "ins", "mark", "abbr", "cite"}
+_BLOCK_BOUNDARY = {
+    "br", "p", "div", "ul", "ol", "li", "table", "pre", "blockquote", "hr",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+}  # fmt: skip
+_BLOCK_CONTAINERS = {"p", "div", "li", "blockquote", "[document]"}
+
+
+def _at_line_start(node: Any) -> bool:
+    """Whether a text node will start a Markdown line."""
+    while True:
+        prev = node.previous_sibling
+        while isinstance(prev, NavigableString) and not prev.strip():
+            prev = prev.previous_sibling
+        if prev is not None:
+            return isinstance(prev, Tag) and prev.name in _BLOCK_BOUNDARY
+        parent = node.parent
+        if parent is None:
+            return True
+        if parent.name in _TRANSPARENT_INLINE:
+            node = parent
+            continue
+        return bool(parent.name in _BLOCK_CONTAINERS)
+
+
+def _escape_line_starts(text: str, at_start: bool) -> str:
+    def repl(m: re.Match[str]) -> str:
+        if m.start() == 0 and not at_start:
+            return m.group(0)
+        if m.group("num") is not None:
+            return m.group(0) + "\\"
+        return m.group("indent") + "\\" + m.group("mark")
+
+    return _LINE_MARKER_RE.sub(repl, text)
 
 
 # The markdownify type stub does not declare escape/convert_table.
@@ -181,6 +245,19 @@ class _Converter(_MarkdownConverterBase):  # type: ignore[misc]
         # Literal '<' and entity-like '&' would otherwise be read back as HTML.
         text = str(super().escape(text, parent_tags))
         return _ENTITY_LIKE_RE.sub("&amp;", text).replace("<", "&lt;")
+
+    def process_text(self, el: NavigableString, parent_tags: set[str] | None = None) -> str:
+        text = str(super().process_text(el, parent_tags))
+        if parent_tags and ("_noformat" in parent_tags or "pre" in parent_tags):
+            return text
+        return _escape_line_starts(text, _at_line_start(el))
+
+    def convert_td(self, el: Tag, text: str, parent_tags: set[str]) -> str:
+        # A literal '|' would end the cell; GFM tables unescape '\|' (also in code spans).
+        return str(super().convert_td(el, text.replace("|", "\\|"), parent_tags))
+
+    def convert_th(self, el: Tag, text: str, parent_tags: set[str]) -> str:
+        return str(super().convert_th(el, text.replace("|", "\\|"), parent_tags))
 
     def convert_table(self, el: Tag, text: str, parent_tags: set[str]) -> str:
         if _is_complex_table(el):
@@ -201,6 +278,8 @@ _OPTIONS: dict[str, Any] = {
     "bullets": "-",
     "code_language_callback": _code_language,
     "escape_misc": False,
+    "sup_symbol": "<sup>",
+    "sub_symbol": "<sub>",
 }
 
 
